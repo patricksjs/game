@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ETH猜大小</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script>
+</head>
+<body>
+    <h1>ETH猜大小</h1>
+    <button id="connectWallet">连接钱包</button>
+    <div id="game" style="display: none;">
+        <input type="number" id="betAmount" placeholder="下注ETH（0.01-1）" step="0.01">
+        <button id="betBig">猜大（51-100）</button>
+        <button id="betSmall">猜小（1-50）</button>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        let web3, contract, account;
+
+        // 1. 已填好你的合约ABI（不用改）
+        const abi = [
+          {
+            "inputs": [],
+            "stateMutability": "nonpayable",
+            "type": "constructor"
+          },
+          {
+            "anonymous": false,
+            "inputs": [
+              {
+                "indexed": true,
+                "internalType": "address",
+                "name": "player",
+                "type": "address"
+              },
+              {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+              },
+              {
+                "indexed": false,
+                "internalType": "bool",
+                "name": "guessedBig",
+                "type": "bool"
+              },
+              {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "diceResult",
+                "type": "uint256"
+              },
+              {
+                "indexed": false,
+                "internalType": "bool",
+                "name": "isWin",
+                "type": "bool"
+              }
+            ],
+            "name": "BetPlaced",
+            "type": "event"
+          },
+          {
+            "inputs": [],
+            "name": "houseEdge",
+            "outputs": [
+              {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+              }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+          },
+          {
+            "inputs": [],
+            "name": "isPaused",
+            "outputs": [
+              {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+              }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+          },
+          {
+            "inputs": [],
+            "name": "maxBet",
+            "outputs": [
+              {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+              }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+          },
+          {
+            "inputs": [],
+            "name": "minBet",
+            "outputs": [
+              {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+              }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+          },
+          {
+            "inputs": [],
+            "name": "owner",
+            "outputs": [
+              {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+              }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+          },
+          {
+            "inputs": [
+              {
+                "internalType": "bool",
+                "name": "guessedBig",
+                "type": "bool"
+              }
+            ],
+            "name": "placeBet",
+            "outputs": [],
+            "stateMutability": "payable",
+            "type": "function"
+          },
+          {
+            "inputs": [
+              {
+                "internalType": "uint256",
+                "name": "_minBet",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "_maxBet",
+                "type": "uint256"
+              }
+            ],
+            "name": "setBetLimits",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+          },
+          {
+            "inputs": [],
+            "name": "togglePause",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+          },
+          {
+            "inputs": [],
+            "name": "withdraw",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+          }
+        ];
+
+        // 2. 已填好你的合约地址（不用改）
+        const contractAddress = "0xA13Db2bCd512A838E0D5690d955D2F172539c169";
+
+        // 连接钱包逻辑（修复了事件监听位置）
+        document.getElementById("connectWallet").onclick = async () => {
+            if (window.ethereum) {
+                web3 = new Web3(window.ethereum);
+                // 请求钱包授权
+                await window.ethereum.request({ method: "eth_requestAccounts" });
+                // 获取当前账户
+                account = (await web3.eth.getAccounts())[0];
+                // 创建合约实例
+                contract = new web3.eth.Contract(abi, contractAddress);
+                // 显示游戏界面
+                document.getElementById("game").style.display = "block";
+                
+                // 监听开奖事件（移到连接钱包后，避免未定义报错）
+                contract.events.BetPlaced({}, (error, event) => {
+                    if (!error) {
+                        const resultText = `开奖结果: ${event.returnValues.diceResult} |
+                                           你${event.returnValues.isWin ? "赢了！" : "输了..."}`;
+                        document.getElementById("result").innerText = resultText;
+                    }
+                });
+            } else {
+                alert("请安装MetaMask钱包！");
+            }
+        };
+
+        // 下注逻辑（增加金额校验）
+        async function placeBet(guessedBig) {
+            const amount = document.getElementById("betAmount").value;
+            // 校验金额范围
+            if (!amount || amount < 0.01 || amount > 1) {
+                alert("请输入0.01-1之间的ETH金额！");
+                return;
+            }
+            // 转换为wei单位（ETH最小单位）
+            const weiAmount = web3.utils.toWei(amount, "ether");
+
+            try {
+                // 发送下注交易
+                await contract.methods.placeBet(guessedBig).send({
+                    from: account,
+                    value: weiAmount
+                });
+                alert(`下注成功！等待开奖...`);
+            } catch (e) {
+                alert(`错误: ${e.message}`);
+            }
+        }
+
+        // 绑定按钮点击事件
+        document.getElementById("betBig").onclick = () => placeBet(true);
+        document.getElementById("betSmall").onclick = () => placeBet(false);
+    </script>
+</body>
+</html>
