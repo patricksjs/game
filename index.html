@@ -1,233 +1,1340 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    <title>ETH猜大小</title>
-    <script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script>
+  <meta charset="UTF-8" />
+  <title>ETH 猜大小 ｜ Mint Leverage Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Web3.js -->
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.4/dist/web3.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #2f80ed 0, #1b1b3a 40%, #050816 100%);
+      color: #f5f7ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+
+    .glow-orb {
+      position: fixed;
+      width: 420px;
+      height: 420px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(125, 249, 255, 0.18), transparent 70%);
+      filter: blur(4px);
+      top: -80px;
+      right: -40px;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 960px;
+      background: radial-gradient(circle at top left, rgba(255,255,255,0.05), rgba(10,10,30,0.98));
+      border-radius: 24px;
+      padding: 24px 24px 28px;
+      box-shadow:
+        0 24px 60px rgba(0,0,0,0.7),
+        0 0 0 1px rgba(255,255,255,0.04);
+      backdrop-filter: blur(20px);
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(0, 2.4fr);
+      gap: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    @media (max-width: 800px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .container::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: linear-gradient(
+        130deg,
+        rgba(255, 255, 255, 0.06),
+        transparent 40%,
+        transparent 60%,
+        rgba(255, 255, 255, 0.02)
+      );
+      mix-blend-mode: soft-light;
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    .left,
+    .right {
+      position: relative;
+      z-index: 1;
+    }
+
+    .title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      gap: 12px;
+    }
+
+    .title {
+      font-size: 24px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chip {
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      background: linear-gradient(135deg, rgba(46, 204, 113, 0.1), rgba(72, 219, 251, 0.08));
+      border: 1px solid rgba(111, 207, 151, 0.6);
+      color: #9be7b6;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: #c6c9ff;
+      opacity: 0.9;
+      margin-bottom: 16px;
+    }
+
+    .wallet-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .btn {
+      position: relative;
+      border: none;
+      outline: none;
+      cursor: pointer;
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: #080822;
+      background: linear-gradient(135deg, #7cf1ff, #2f80ed);
+      box-shadow:
+        0 12px 30px rgba(47, 128, 237, 0.55),
+        0 0 0 1px rgba(255, 255, 255, 0.3) inset;
+      transition: all 0.18s ease-out, transform 0.08s ease-out;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .btn span.dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #0c945a;
+      box-shadow: 0 0 8px rgba(46, 213, 115, 0.9);
+    }
+
+    .btn.secondary {
+      background: radial-gradient(circle at top, #1b2140, #050816);
+      color: #e3e6ff;
+      box-shadow:
+        0 0 0 1px rgba(120, 121, 241, 0.8),
+        0 8px 18px rgba(0,0,0,0.75);
+    }
+
+    .btn.small {
+      padding: 7px 12px;
+      font-size: 11px;
+    }
+
+    .btn:active {
+      transform: translateY(1px) scale(0.99);
+      box-shadow:
+        0 6px 16px rgba(47, 128, 237, 0.45),
+        0 0 0 1px rgba(255, 255, 255, 0.25) inset;
+    }
+
+    .btn[disabled] {
+      opacity: 0.5;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .wallet-info {
+      font-size: 11px;
+      color: #c3c7ff;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .wallet-pill {
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(36, 40, 80, 0.95);
+      border: 1px solid rgba(116, 185, 255, 0.6);
+      font-weight: 500;
+      max-width: 210px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .badge {
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      background: rgba(33, 150, 243, 0.18);
+      border: 1px solid rgba(144, 202, 249, 0.8);
+      color: #9fd2ff;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .card {
+      border-radius: 18px;
+      padding: 16px 16px 18px;
+      background: radial-gradient(circle at top left, rgba(255,255,255,0.04), rgba(10,10,30,0.96));
+      border: 1px solid rgba(111, 118, 255, 0.4);
+      box-shadow:
+        0 18px 34px rgba(0,0,0,0.88),
+        0 0 0 1px rgba(255,255,255,0.02);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(140deg, rgba(255,255,255,0.08), transparent 40%, transparent 60%, rgba(255,255,255,0.02));
+      mix-blend-mode: soft-light;
+      opacity: 0.8;
+      pointer-events: none;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      gap: 10px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pill-info {
+      font-size: 11px;
+      color: #d0d2ff;
+      opacity: 0.9;
+    }
+
+    .input-row {
+      margin-top: 6px;
+      margin-bottom: 10px;
+    }
+
+    .input-label {
+      font-size: 11px;
+      margin-bottom: 4px;
+      color: #eef1ff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .input-label span.hint {
+      font-size: 10px;
+      color: #a8adff;
+      opacity: 0.8;
+    }
+
+    .input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .input-wrap input[type="number"] {
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(116, 185, 255, 0.6);
+      background: rgba(4, 10, 30, 0.94);
+      color: #f5f7ff;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+    }
+
+    .input-wrap input[type="number"]:focus {
+      border-color: rgba(129, 236, 236, 0.9);
+      box-shadow: 0 0 0 1px rgba(129, 236, 236, 0.7), 0 0 12px rgba(129, 236, 236, 0.4);
+      background: rgba(3, 14, 38, 0.98);
+    }
+
+    .input-append {
+      font-size: 11px;
+      color: #9da4ff;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: rgba(16, 24, 60, 0.96);
+      border: 1px solid rgba(116, 185, 255, 0.6);
+      white-space: nowrap;
+    }
+
+    .range-row {
+      margin-bottom: 10px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      -webkit-appearance: none;
+      height: 5px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #7cf1ff, #2f80ed);
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 2px solid #2f80ed;
+      box-shadow: 0 0 0 3px rgba(53, 132, 228, 0.45);
+      cursor: pointer;
+    }
+
+    .bet-buttons {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .bet-btn {
+      border-radius: 16px;
+      padding: 14px 12px 12px;
+      border: 1px solid rgba(120, 121, 241, 0.7);
+      background: radial-gradient(circle at top, rgba(41, 128, 185, 0.35), rgba(5, 5, 18, 0.98));
+      color: #f5f7ff;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: flex-start;
+      justify-content: center;
+      text-align: left;
+      box-shadow:
+        0 14px 24px rgba(0,0,0,0.9),
+        0 0 0 1px rgba(255,255,255,0.04);
+      transition: transform 0.12s ease-out, box-shadow 0.12s ease-out, border-color 0.16s ease-out, background 0.16s ease-out;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .bet-btn::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top, rgba(255,255,255,0.18), transparent 50%);
+      opacity: 0;
+      transition: opacity 0.18s ease-out;
+    }
+
+    .bet-btn:hover {
+      transform: translateY(-1px) scale(1.01);
+      border-color: rgba(129, 236, 236, 0.9);
+      box-shadow:
+        0 18px 32px rgba(0,0,0,0.95),
+        0 0 0 1px rgba(129, 236, 236, 0.5);
+    }
+
+    .bet-btn:hover::after {
+      opacity: 0.75;
+    }
+
+    .bet-btn span.main {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .bet-btn span.range {
+      font-size: 11px;
+      color: #c0c4ff;
+    }
+
+    .bet-btn span.win {
+      font-size: 10px;
+      color: #35ffb5;
+      opacity: 0.9;
+    }
+
+    .bet-btn.disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+      border-style: dashed;
+    }
+
+    .payout-line {
+      font-size: 11px;
+      color: #b3b7ff;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 2px;
+      margin-bottom: 4px;
+    }
+
+    .payout-line span.value {
+      color: #7cf1ff;
+      font-weight: 500;
+    }
+
+    .status-bar {
+      font-size: 11px;
+      margin-top: 2px;
+      color: #cfd2ff;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .status-bar span.left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot-anim {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #7cf1ff;
+      box-shadow: 0 0 7px rgba(124,241,255,0.9);
+      animation: pulse 1.2s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.9); opacity: 0.7; }
+      50% { transform: scale(1.25); opacity: 1; }
+      100% { transform: scale(0.9); opacity: 0.7; }
+    }
+
+    .right-top {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .stat-chip {
+      border-radius: 14px;
+      padding: 7px 9px;
+      background: radial-gradient(circle at top, rgba(45, 52, 88, 0.8), rgba(12, 16, 40, 0.98));
+      border: 1px solid rgba(120, 121, 241, 0.7);
+      font-size: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .stat-label {
+      color: #aeb3ff;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .stat-value {
+      color: #ffffff;
+      font-weight: 600;
+      font-size: 12px;
+    }
+
+    .stat-sub {
+      color: #7cf1ff;
+      font-size: 10px;
+    }
+
+    .dice-wrap {
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 0 2px;
+    }
+
+    .dice {
+      width: 72px;
+      height: 72px;
+      border-radius: 22%;
+      background: radial-gradient(circle at top left, #ffffff, #f4f7ff);
+      box-shadow:
+        0 18px 32px rgba(0,0,0,0.8),
+        0 0 0 1px rgba(0,0,0,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      font-weight: 700;
+      color: #15163a;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.7s cubic-bezier(.19,.87,.31,1.13), box-shadow 0.2s;
+    }
+
+    .dice.rolling {
+      animation: rollDice 0.7s cubic-bezier(.19,.87,.31,1.13);
+    }
+
+    @keyframes rollDice {
+      0% { transform: rotate3d(1, 1, 0, 0deg) scale(1); }
+      40% { transform: rotate3d(1, 1, 0, 260deg) scale(1.1); }
+      100% { transform: rotate3d(1, 1, 0, 360deg) scale(1); }
+    }
+
+    .dice-glow {
+      position: absolute;
+      inset: -10px;
+      border-radius: inherit;
+      background: radial-gradient(circle at center, rgba(124,241,255,0.5), transparent 60%);
+      opacity: 0;
+      transition: opacity 0.3s ease-out;
+      mix-blend-mode: screen;
+    }
+
+    .dice.win .dice-glow {
+      opacity: 1;
+    }
+
+    .result-text {
+      text-align: center;
+      margin-top: 6px;
+      font-size: 13px;
+      color: #e8ebff;
+    }
+
+    .result-text span.highlight {
+      color: #7cf1ff;
+      font-weight: 600;
+    }
+
+    .result-text span.win {
+      color: #4deea8;
+      font-weight: 700;
+    }
+
+    .result-text span.lose {
+      color: #ff7675;
+      font-weight: 700;
+    }
+
+    .timeline {
+      margin-top: 8px;
+      padding-top: 6px;
+      border-top: 1px dashed rgba(120,121,241,0.5);
+      max-height: 120px;
+      overflow-y: auto;
+      font-size: 11px;
+    }
+
+    .timeline-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 4px 0;
+    }
+
+    .timeline-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pill-small {
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 10px;
+      border: 1px solid rgba(120,121,241,0.7);
+      background: rgba(18, 22, 54, 0.95);
+    }
+
+    .pill-small.win {
+      border-color: rgba(46, 213, 115, 0.9);
+      color: #4deea8;
+    }
+
+    .pill-small.lose {
+      border-color: rgba(255, 118, 117, 0.9);
+      color: #ff9f9a;
+    }
+
+    .timeline-amount {
+      color: #f5f7ff;
+      font-weight: 500;
+    }
+
+    .timeline-time {
+      color: #aeb3ff;
+      font-size: 10px;
+      opacity: 0.85;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%) translateY(110%);
+      padding: 9px 14px;
+      border-radius: 999px;
+      background: rgba(13, 20, 48, 0.96);
+      border: 1px solid rgba(129,236,236,0.7);
+      color: #e0f8ff;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow:
+        0 14px 30px rgba(0,0,0,0.9),
+        0 0 0 1px rgba(255,255,255,0.1);
+      opacity: 0;
+      transition: transform 0.25s cubic-bezier(.19,.87,.31,1.13), opacity 0.2s;
+      z-index: 40;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0%);
+      opacity: 1;
+    }
+
+    .toast-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #7cf1ff;
+      box-shadow: 0 0 10px rgba(124,241,255,0.9);
+    }
+
+    .badge-danger {
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 9px;
+      background: rgba(255, 82, 82, 0.16);
+      border: 1px solid rgba(239, 83, 80, 0.85);
+      color: #ff9f9a;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+  </style>
 </head>
 <body>
-    <h1>ETH猜大小</h1>
-    <button id="connectWallet">连接钱包</button>
-    <div id="game" style="display: none;">
-        <input type="number" id="betAmount" placeholder="下注ETH（0.01-1）" step="0.01">
-        <button id="betBig">猜大（51-100）</button>
-        <button id="betSmall">猜小（1-50）</button>
-        <div id="result"></div>
+  <div class="glow-orb"></div>
+  <div class="container">
+    <div class="left">
+      <div class="title-row">
+        <div>
+          <div class="title">
+            ETH 猜大小
+            <span class="chip">链上即时开奖</span>
+          </div>
+          <div class="subtitle">
+            选择 <b>大</b> 或 <b>小</b>，掷出 1-100 点数，猜中获得 <b>1.9 倍 ETH</b> 奖励。
+          </div>
+        </div>
+        <button id="connectWallet" class="btn">
+          <span class="dot"></span>
+          <span id="connectText">连接钱包</span>
+        </button>
+      </div>
+
+      <div class="wallet-row">
+        <div class="badge" id="networkLabel">未连接</div>
+        <div class="wallet-info">
+          <div class="wallet-pill" id="accountDisplay">钱包地址：——</div>
+          <div class="badge" id="contractStatus">状态：未知</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            🎲 下注面板
+          </div>
+          <div class="pill-info" id="limitInfo">单注限制：加载中...</div>
+        </div>
+
+        <div class="input-row">
+          <div class="input-label">
+            <span>下注金额 (ETH)</span>
+            <span class="hint">庄家即时结算 · 手续费内置在赔率中</span>
+          </div>
+          <div class="input-wrap">
+            <input type="number" id="betAmount" placeholder="0.01 - 1.00" step="0.01" min="0.01" />
+            <div class="input-append" id="betAmountFiat">≈ 0 USD</div>
+          </div>
+        </div>
+
+        <div class="range-row">
+          <input type="range" id="betSlider" min="0.01" max="1" step="0.01" value="0.05" />
+        </div>
+
+        <div class="payout-line">
+          <span>预计中奖时拿回：</span>
+          <span class="value" id="payoutPreview">0.095 ETH</span>
+        </div>
+
+        <div class="bet-buttons">
+          <button id="betBig" class="bet-btn">
+            <span class="main">猜大</span>
+            <span class="range">51 - 100</span>
+            <span class="win">> 一半几率，赔率 1.9x</span>
+          </button>
+          <button id="betSmall" class="bet-btn">
+            <span class="main">猜小</span>
+            <span class="range">1 - 50</span>
+            <span class="win">> 一半几率，赔率 1.9x</span>
+          </button>
+        </div>
+
+        <div class="status-bar">
+          <span class="left">
+            <span class="dot-anim"></span>
+            <span id="statusText">请先连接钱包开始游戏</span>
+          </span>
+          <button id="toggleViewLast" class="btn secondary small">查看上次结果</button>
+        </div>
+      </div>
     </div>
 
-    <script>
-        let web3, contract, account;
+    <div class="right">
+      <div class="right-top">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              💰 庄家池 & 统计
+            </div>
+          </div>
+          <div class="stat-grid">
+            <div class="stat-chip">
+              <div class="stat-label">Pool</div>
+              <div class="stat-value" id="poolBalance">--</div>
+              <div class="stat-sub">合约余额</div>
+            </div>
+            <div class="stat-chip">
+              <div class="stat-label">Bets</div>
+              <div class="stat-value" id="totalBets">--</div>
+              <div class="stat-sub">总下注数</div>
+            </div>
+            <div class="stat-chip">
+              <div class="stat-label">Volume</div>
+              <div class="stat-value" id="totalVolume">--</div>
+              <div class="stat-sub">累计投注 ETH</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-        // 1. 已填好你的合约ABI（不用改）
-        const abi = [
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            🧪 开奖动画 & 历史
+          </div>
+          <span id="pausedBadge" class="badge-danger" style="display:none;">合约已暂停</span>
+        </div>
+
+        <div class="dice-wrap">
+          <div class="dice" id="dice">
+            <div class="dice-glow"></div>
+            <span id="diceValue">--</span>
+          </div>
+        </div>
+
+        <div class="result-text" id="resultText">
+          等待你的下一次下注...
+        </div>
+
+        <div class="timeline" id="timeline">
+          <!-- 最近几次本地记录 -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">
+    <span class="toast-dot"></span>
+    <span id="toastText">提示内容</span>
+  </div>
+
+  <script>
+    let web3;
+    let contract;
+    let account;
+    let minBet = null;
+    let maxBet = null;
+    let isPaused = false;
+
+    // 与当前 Solidity 合约保持一致的 ABI
+    const abi = [
+      {
+        "inputs": [],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
           {
-            "inputs": [],
-            "stateMutability": "nonpayable",
-            "type": "constructor"
+            "indexed": true,
+            "internalType": "address",
+            "name": "player",
+            "type": "address"
           },
           {
-            "anonymous": false,
-            "inputs": [
-              {
-                "indexed": true,
-                "internalType": "address",
-                "name": "player",
-                "type": "address"
-              },
-              {
-                "indexed": false,
-                "internalType": "uint256",
-                "name": "amount",
-                "type": "uint256"
-              },
-              {
-                "indexed": false,
-                "internalType": "bool",
-                "name": "guessedBig",
-                "type": "bool"
-              },
-              {
-                "indexed": false,
-                "internalType": "uint256",
-                "name": "diceResult",
-                "type": "uint256"
-              },
-              {
-                "indexed": false,
-                "internalType": "bool",
-                "name": "isWin",
-                "type": "bool"
-              }
-            ],
-            "name": "BetPlaced",
-            "type": "event"
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
           },
           {
-            "inputs": [],
-            "name": "houseEdge",
-            "outputs": [
-              {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-              }
-            ],
-            "stateMutability": "view",
-            "type": "function"
+            "indexed": false,
+            "internalType": "bool",
+            "name": "guessedBig",
+            "type": "bool"
           },
           {
-            "inputs": [],
-            "name": "isPaused",
-            "outputs": [
-              {
-                "internalType": "bool",
-                "name": "",
-                "type": "bool"
-              }
-            ],
-            "stateMutability": "view",
-            "type": "function"
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "diceResult",
+            "type": "uint256"
           },
           {
-            "inputs": [],
-            "name": "maxBet",
-            "outputs": [
-              {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-              }
-            ],
-            "stateMutability": "view",
-            "type": "function"
-          },
-          {
-            "inputs": [],
-            "name": "minBet",
-            "outputs": [
-              {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-              }
-            ],
-            "stateMutability": "view",
-            "type": "function"
-          },
-          {
-            "inputs": [],
-            "name": "owner",
-            "outputs": [
-              {
-                "internalType": "address",
-                "name": "",
-                "type": "address"
-              }
-            ],
-            "stateMutability": "view",
-            "type": "function"
-          },
-          {
-            "inputs": [
-              {
-                "internalType": "bool",
-                "name": "guessedBig",
-                "type": "bool"
-              }
-            ],
-            "name": "placeBet",
-            "outputs": [],
-            "stateMutability": "payable",
-            "type": "function"
-          },
-          {
-            "inputs": [
-              {
-                "internalType": "uint256",
-                "name": "_minBet",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "_maxBet",
-                "type": "uint256"
-              }
-            ],
-            "name": "setBetLimits",
-            "outputs": [],
-            "stateMutability": "nonpayable",
-            "type": "function"
-          },
-          {
-            "inputs": [],
-            "name": "togglePause",
-            "outputs": [],
-            "stateMutability": "nonpayable",
-            "type": "function"
-          },
-          {
-            "inputs": [],
-            "name": "withdraw",
-            "outputs": [],
-            "stateMutability": "nonpayable",
-            "type": "function"
+            "indexed": false,
+            "internalType": "bool",
+            "name": "isWin",
+            "type": "bool"
           }
-        ];
+        ],
+        "name": "BetPlaced",
+        "type": "event"
+      },
+      {
+        "inputs": [],
+        "name": "houseEdge",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "isPaused",
+        "outputs": [
+          {
+            "internalType": "bool",
+            "name": "",
+            "type": "bool"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "maxBet",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "minBet",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "owner",
+        "outputs": [
+          {
+            "internalType": "address",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "totalBets",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "totalVolume",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "getContractBalance",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "lastBetOf",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "guessedBig",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "diceResult",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "isWin",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "timestamp",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "bool",
+            "name": "guessedBig",
+            "type": "bool"
+          }
+        ],
+        "name": "placeBet",
+        "outputs": [],
+        "stateMutability": "payable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "withdraw",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      }
+    ];
 
-        // 2. 已填好你的合约地址（不用改）
-        const contractAddress = "0xA13Db2bCd512A838E0D5690d955D2F172539c169";
+    // 部署后的新合约地址（请替换成你重新部署后的地址）
+    const contractAddress = "0x377e3f7f92E98E8dcB43114d3eF62C9A13E4c946";
 
-        // 连接钱包逻辑（修复了事件监听位置）
-        document.getElementById("connectWallet").onclick = async () => {
-            if (window.ethereum) {
-                web3 = new Web3(window.ethereum);
-                // 请求钱包授权
-                await window.ethereum.request({ method: "eth_requestAccounts" });
-                // 获取当前账户
-                account = (await web3.eth.getAccounts())[0];
-                // 创建合约实例
-                contract = new web3.eth.Contract(abi, contractAddress);
-                // 显示游戏界面
-                document.getElementById("game").style.display = "block";
-                
-                // 监听开奖事件（移到连接钱包后，避免未定义报错）
-                contract.events.BetPlaced({}, (error, event) => {
-                    if (!error) {
-                        const resultText = `开奖结果: ${event.returnValues.diceResult} |
-                                           你${event.returnValues.isWin ? "赢了！" : "输了..."}`;
-                        document.getElementById("result").innerText = resultText;
-                    }
-                });
-            } else {
-                alert("请安装MetaMask钱包！");
-            }
-        };
+    const connectBtn = document.getElementById("connectWallet");
+    const connectText = document.getElementById("connectText");
+    const accountDisplay = document.getElementById("accountDisplay");
+    const contractStatus = document.getElementById("contractStatus");
+    const networkLabel = document.getElementById("networkLabel");
 
-        // 下注逻辑（增加金额校验）
-        async function placeBet(guessedBig) {
-            const amount = document.getElementById("betAmount").value;
-            // 校验金额范围
-            if (!amount || amount < 0.01 || amount > 1) {
-                alert("请输入0.01-1之间的ETH金额！");
-                return;
-            }
-            // 转换为wei单位（ETH最小单位）
-            const weiAmount = web3.utils.toWei(amount, "ether");
+    const betAmountInput = document.getElementById("betAmount");
+    const betSlider = document.getElementById("betSlider");
+    const betAmountFiat = document.getElementById("betAmountFiat");
+    const payoutPreview = document.getElementById("payoutPreview");
+    const betBigBtn = document.getElementById("betBig");
+    const betSmallBtn = document.getElementById("betSmall");
+    const statusText = document.getElementById("statusText");
+    const toggleViewLast = document.getElementById("toggleViewLast");
 
-            try {
-                // 发送下注交易
-                await contract.methods.placeBet(guessedBig).send({
-                    from: account,
-                    value: weiAmount
-                });
-                alert(`下注成功！等待开奖...`);
-            } catch (e) {
-                alert(`错误: ${e.message}`);
-            }
+    const poolBalance = document.getElementById("poolBalance");
+    const totalBetsEl = document.getElementById("totalBets");
+    const totalVolumeEl = document.getElementById("totalVolume");
+
+    const dice = document.getElementById("dice");
+    const diceValue = document.getElementById("diceValue");
+    const resultText = document.getElementById("resultText");
+    const timeline = document.getElementById("timeline");
+    const limitInfo = document.getElementById("limitInfo");
+    const pausedBadge = document.getElementById("pausedBadge");
+
+    const toast = document.getElementById("toast");
+    const toastText = document.getElementById("toastText");
+
+    let localHistory = [];
+
+    function showToast(message) {
+      toastText.textContent = message;
+      toast.classList.add("show");
+      setTimeout(() => {
+        toast.classList.remove("show");
+      }, 2600);
+    }
+
+    function shortAddress(addr) {
+      if (!addr) return "——";
+      return addr.slice(0, 6) + "..." + addr.slice(-4);
+    }
+
+    function formatEth(wei) {
+      if (!web3) return "--";
+      return parseFloat(web3.utils.fromWei(wei, "ether")).toFixed(4);
+    }
+
+    function updatePayoutPreview() {
+      const val = parseFloat(betAmountInput.value || "0");
+      if (!val || val <= 0) {
+        payoutPreview.textContent = "0.0000 ETH";
+        return;
+      }
+      const payout = val * 1.9;
+      payoutPreview.textContent = payout.toFixed(4) + " ETH";
+    }
+
+    function syncSliderAndInput(fromSlider) {
+      if (fromSlider) {
+        betAmountInput.value = parseFloat(betSlider.value).toFixed(2);
+      } else {
+        const v = parseFloat(betAmountInput.value || "0");
+        if (!isNaN(v)) {
+          betSlider.value = v;
+        }
+      }
+      // 简单展示法币估值，可以之后接真实汇率，这里写死估值方便演示
+      const val = parseFloat(betAmountInput.value || "0");
+      const est = val * 3200; // 假设 1 ETH ≈ 3200 USD，仅展示用
+      betAmountFiat.textContent = "≈ " + est.toFixed(2) + " USD";
+      updatePayoutPreview();
+    }
+
+    betSlider.addEventListener("input", () => syncSliderAndInput(true));
+    betAmountInput.addEventListener("input", () => syncSliderAndInput(false));
+
+    async function initContractReadState() {
+      if (!contract) return;
+      try {
+        const [_min, _max, _paused, _balance, _totalBets, _totalVolume] = await Promise.all([
+          contract.methods.minBet().call(),
+          contract.methods.maxBet().call(),
+          contract.methods.isPaused().call(),
+          contract.methods.getContractBalance().call(),
+          contract.methods.totalBets().call(),
+          contract.methods.totalVolume().call()
+        ]);
+
+        minBet = _min;
+        maxBet = _max;
+        isPaused = _paused;
+
+        const minEth = web3.utils.fromWei(_min, "ether");
+        const maxEth = web3.utils.fromWei(_max, "ether");
+        limitInfo.textContent = `单注限制：${parseFloat(minEth).toFixed(3)} - ${parseFloat(maxEth).toFixed(3)} ETH`;
+
+        poolBalance.textContent = formatEth(_balance) + " ETH";
+        totalBetsEl.textContent = _totalBets;
+        totalVolumeEl.textContent = formatEth(_totalVolume) + " ETH";
+
+        pausedBadge.style.display = _paused ? "inline-flex" : "none";
+        contractStatus.textContent = _paused ? "状态：暂停中" : "状态：运行中";
+      } catch (err) {
+        console.error(err);
+        showToast("读取合约状态失败，请检查网络");
+      }
+    }
+
+    async function loadLastBet() {
+      if (!contract || !account) return;
+      try {
+        const res = await contract.methods.lastBetOf(account).call();
+        const amountWei = res.amount;
+        if (amountWei === "0") {
+          resultText.textContent = "暂无你的历史记录，快来下注试一把吧！";
+          return;
         }
 
-        // 绑定按钮点击事件
-        document.getElementById("betBig").onclick = () => placeBet(true);
-        document.getElementById("betSmall").onclick = () => placeBet(false);
-    </script>
+        const amountEth = formatEth(amountWei);
+        const diceRes = res.diceResult;
+        const isWin = res.isWin;
+        const guessedBig = res.guessedBig;
+
+        diceValue.textContent = diceRes.toString();
+        dice.classList.toggle("win", isWin);
+
+        const guessText = guessedBig ? "猜大" : "猜小";
+        resultText.innerHTML = `上次你选择 <span class="highlight">${guessText}</span>，摇出了 <span class="highlight">${diceRes}</span> 点，<span class="${isWin ? "win" : "lose"}">${isWin ? "赢了！" : "输了..."}</span>`;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function pushLocalHistory(record) {
+      localHistory.unshift(record);
+      if (localHistory.length > 6) localHistory.pop();
+
+      timeline.innerHTML = "";
+      localHistory.forEach((r) => {
+        const div = document.createElement("div");
+        div.className = "timeline-item";
+        div.innerHTML = `
+          <div class="timeline-left">
+            <span class="pill-small ${r.isWin ? "win" : "lose"}">${r.isWin ? "WIN" : "LOSE"}</span>
+            <span class="timeline-amount">${r.amountEth} ETH · ${r.guessedBig ? "猜大" : "猜小"}</span>
+          </div>
+          <div class="timeline-right">
+            <span class="pill-small">点数 ${r.dice}</span>
+            <span class="timeline-time">${r.time}</span>
+          </div>
+        `;
+        timeline.appendChild(div);
+      });
+    }
+
+    function animateDiceTo(resultNumber, isWin) {
+      dice.classList.remove("win");
+      dice.classList.add("rolling");
+      diceValue.textContent = "··";
+      setTimeout(() => {
+        diceValue.textContent = resultNumber.toString();
+        dice.classList.remove("rolling");
+        if (isWin) {
+          dice.classList.add("win");
+        }
+      }, 700);
+    }
+
+    async function placeBet(guessedBig) {
+      if (!web3 || !contract || !account) {
+        showToast("请先连接钱包");
+        return;
+      }
+
+      if (isPaused) {
+        showToast("合约已暂停，暂时无法下注");
+        return;
+      }
+
+      const amount = parseFloat(betAmountInput.value || "0");
+      if (!amount || amount <= 0) {
+        alert("请输入有效的 ETH 金额！");
+        return;
+      }
+
+      if (minBet && maxBet) {
+        const amountWei = web3.utils.toWei(amount.toString(), "ether");
+        const min = web3.utils.toBN(minBet);
+        const max = web3.utils.toBN(maxBet);
+        const amt = web3.utils.toBN(amountWei);
+
+        if (amt.lt(min) || amt.gt(max)) {
+          alert("下注金额需在合约限制范围内！");
+          return;
+        }
+      }
+
+      const weiAmount = web3.utils.toWei(amount.toString(), "ether");
+
+      try {
+        betBigBtn.disabled = true;
+        betSmallBtn.disabled = true;
+        statusText.textContent = "交易发送中，请在钱包中确认...";
+        animateDiceTo(99, false); // 假装先摇一摇
+
+        await contract.methods.placeBet(guessedBig).send({
+          from: account,
+          value: weiAmount
+        });
+
+        showToast("下注成功！等待区块确认与链上开奖...");
+      } catch (e) {
+        console.error(e);
+        showToast("交易失败或被拒绝：" + (e.message || ""));
+        statusText.textContent = "下注失败，请重试。";
+        betBigBtn.disabled = false;
+        betSmallBtn.disabled = false;
+      }
+    }
+
+    async function connect() {
+      if (!window.ethereum) {
+        alert("未检测到以太坊钱包，请先安装 MetaMask 或兼容钱包。");
+        return;
+      }
+
+      try {
+        web3 = new Web3(window.ethereum);
+        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+        account = accounts[0];
+
+        const chainId = await window.ethereum.request({ method: "eth_chainId" });
+        networkLabel.textContent = "网络 ID: " + parseInt(chainId, 16);
+
+        accountDisplay.textContent = "钱包地址：" + shortAddress(account);
+        connectText.textContent = "已连接";
+
+        contract = new web3.eth.Contract(abi, contractAddress);
+        statusText.textContent = "钱包已连接，可以开始下注。";
+
+        await initContractReadState();
+        await loadLastBet();
+
+        betBigBtn.disabled = false;
+        betSmallBtn.disabled = false;
+
+        // 监听合约事件
+        contract.events.BetPlaced({ filter: { player: account } })
+          .on("data", (event) => {
+            const { amount, guessedBig, diceResult, isWin } = event.returnValues;
+            const amountEth = formatEth(amount.toString());
+
+            animateDiceTo(diceResult, isWin);
+
+            const guessText = guessedBig ? "猜大" : "猜小";
+            resultText.innerHTML = `你选择 <span class="highlight">${guessText}</span>，摇出了 <span class="highlight">${diceResult}</span> 点，<span class="${isWin ? "win" : "lose"}">${isWin ? "赢了！" : "输了..."}</span>`;
+
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString("zh-CN", { hour12: false });
+            pushLocalHistory({
+              amountEth,
+              guessedBig,
+              dice: diceResult,
+              isWin,
+              time: timeStr
+            });
+
+            betBigBtn.disabled = false;
+            betSmallBtn.disabled = false;
+            statusText.textContent = "开奖完成，可以继续下一局。";
+
+            // 刷新池子 & 统计
+            initContractReadState();
+          })
+          .on("error", (err) => {
+            console.error("Event error", err);
+          });
+
+        // 监听账号切换
+        window.ethereum.on("accountsChanged", (accs) => {
+          if (!accs || accs.length === 0) {
+            account = null;
+            accountDisplay.textContent = "钱包地址：——";
+            connectText.textContent = "连接钱包";
+            betBigBtn.disabled = true;
+            betSmallBtn.disabled = true;
+            statusText.textContent = "请重新连接钱包。";
+          } else {
+            account = accs[0];
+            accountDisplay.textContent = "钱包地址：" + shortAddress(account);
+            loadLastBet();
+          }
+        });
+      } catch (e) {
+        console.error(e);
+        showToast("连接钱包失败：" + (e.message || ""));
+      }
+    }
+
+    connectBtn.addEventListener("click", connect);
+    betBigBtn.addEventListener("click", () => placeBet(true));
+    betSmallBtn.addEventListener("click", () => placeBet(false));
+    toggleViewLast.addEventListener("click", loadLastBet);
+
+    // 初始化默认 UI
+    syncSliderAndInput(true);
+    betBigBtn.disabled = true;
+    betSmallBtn.disabled = true;
+  </script>
 </body>
 </html>
+
+
